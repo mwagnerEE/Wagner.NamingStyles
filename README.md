@@ -8,7 +8,7 @@ When installed, there should be an additional option to fix naming style violati
 ![image](https://github.com/mwagnerEE/Wagner.NamingStyles/assets/58664961/89fb796e-7776-4c4f-9e7f-95ef68080104)
 
 ## Implementation
-The code fix works by simulating a single code change on Microsoft's `NamingStyleCodeFixProvider` so instead of:
+The code fix works by simulating a simple code change on Microsoft's `NamingStyleCodeFixProvider` so instead of:
 
 ```cs
 public override FixAllProvider? GetFixAllProvider()
@@ -26,6 +26,21 @@ public override FixAllProvider? GetFixAllProvider()
     return WellKnownFixAllProviders.BatchFixer;
 }
 ```
+
+And then overriding `GetChangedSolutionAsync` in `FixNameCodeAction`:
+
+```cs
+protected override async Task<Solution> GetChangedSolutionAsync(CancellationToken cancellationToken)
+{
+    return await FixAsync(_startingSolution, _options, _symbol, _newName, cancellationToken);
+}
+
+protected static async Task<Solution> FixAsync(Solution startingSolution, OptionSet options, ISymbol symbol, string fixedName, CancellationToken cancellationToken)
+{
+    return await Renamer.RenameSymbolAsync(startingSolution, symbol, fixedName, options, cancellationToken).ConfigureAwait(false);
+}
+```
+
 
 However, while it would be simple for them, my code fix does not have direct access to the services needed so I had to use reflection. The upshot is that because it's using Microsoft's built in language services, it is able to read the naming style preferences defined in Visual Studio without the need for a separate preference file.
 
