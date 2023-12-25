@@ -1,6 +1,13 @@
 # Wagner.NamingStyles [BETA]
 > [!WARNING]
-> Please back up your projects before trying. I haven't run into any problems but I only tested it on small projects
+> Please back up your projects before trying.
+> 
+> Known Issues:  
+> - If an event in a `UserControl` references a misnamed method in the code behind, the method will be renamed in code behind but not in xaml. This behavior is not present in Microsoft's fixer.
+> - In large projects or solutions, it may incorrectly rename the symbol. It is unclear exactly why but for a large solution it happened for ~120 symbols out of the 1721. Running it again on the document scale fixed those but if the new, incorrect, name conflicts with a different member, it can can be annoying.
+
+> [!IMPORTANT]  
+> Just like Microsoft's built-in IDE1006 fixer, it will rename a symbol even if the new name is already being used causing CS0102 and CS0229 errors.
 
 ## This extension enables FixAll for naming style violations (IDE1006).
 When installed, there should be an additional option to fix naming style violations but this one has the ability to fix all enabled.
