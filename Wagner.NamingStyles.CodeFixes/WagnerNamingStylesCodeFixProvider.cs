@@ -25,11 +25,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
+using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
+//using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -61,16 +63,18 @@ namespace Wagner.NamingStyles
 
         }
 
-
-        NamingStyle _style;
-        CodeFixContext _context;
+        private static ConcurrentDictionary<string, NamingStyle> _namingStyles = new ConcurrentDictionary<string, NamingStyle>();
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            _context = context;
             Diagnostic diagnostic = context.Diagnostics.First();
             string serializedNamingStyle = diagnostic.Properties[nameof(NamingStyle)];
-            _style = NamingStyle.FromXElement(XElement.Parse(serializedNamingStyle));
+            string namingStyleId = serializedNamingStyle.Substring(31, 36);
+
+            if(!_namingStyles.TryGetValue(namingStyleId, out NamingStyle style))
+            {
+                style = NamingStyle.FromXElement(XElement.Parse(serializedNamingStyle));
+            }
 
             Document activeDocument = context.Document;
             TextSpan span = context.Span;
@@ -97,20 +101,18 @@ namespace Wagner.NamingStyles
             }
             OptionSet options = await activeDocument.GetOptionsAsync(context.CancellationToken).ConfigureAwait(false);
 
-            var fixedNames = _style.MakeCompliant(activeSymbol.Name);
-            foreach (var fixedName in fixedNames) //Not sure how multiple compliant names are possible, but the fix all code uses the first one it finds.
+            var fixedNames = style.MakeCompliant(activeSymbol.Name);
+            Debug.Assert(!fixedNames.Skip(1).Any()); //Not sure how multiple compliant names are possible affects results
+            foreach (var fixedName in fixedNames)
             {
                 context.RegisterCodeFix(
                     new FixNameCodeAction(
-                        activeDocument.Project.Solution, activeSymbol, fixedName,
                         string.Format(CodeFixesResources.Fix_Name_Violation_colon_0, fixedName),
                         c => FixAsync(activeDocument, activeSymbol, fixedName, c),
-                        equivalenceKey: nameof(WagnerNamingStylesCodeFixProvider), options),
+                        equivalenceKey: nameof(WagnerNamingStylesCodeFixProvider)),
                     diagnostic);
             }
         }
-
-
 
         private static async Task<Solution> FixAsync(Document document, ISymbol symbol, string fixedName, CancellationToken cancellationToken)
         {
@@ -118,101 +120,86 @@ namespace Wagner.NamingStyles
                 cancellationToken).ConfigureAwait(false);
         }
 
-
-
-
         private class FixNameCodeAction : CodeAction
         {
-            private readonly Solution _startingSolution;
-            private readonly ISymbol _symbol;
-            private readonly string _newName;
             private readonly string _title;
             private readonly Func<CancellationToken, Task<Solution>> _createChangedSolutionAsync;
             private readonly string _equivalenceKey;
-            private readonly OptionSet _options;
 
             public FixNameCodeAction(
-                Solution startingSolution, ISymbol symbol, string newName, string title, Func<CancellationToken, Task<Solution>> createChangedSolutionAsync,
-                string equivalenceKey, OptionSet options)
+                string title, Func<CancellationToken, Task<Solution>> createChangedSolutionAsync,
+                string equivalenceKey)
             {
-                _startingSolution = startingSolution;
-                _symbol = symbol;
-                _newName = newName;
                 _title = title;
                 _createChangedSolutionAsync = createChangedSolutionAsync;
                 _equivalenceKey = equivalenceKey;
-                _options = options;
             }
+            Solution? _cachedNewSolution;
 
             public override string Title => _title;
 
             public override string EquivalenceKey => _equivalenceKey;
 
-            protected static async Task<Solution> FixAsync(Solution startingSolution, OptionSet options, ISymbol symbol, string fixedName, CancellationToken cancellationToken)
-            {
-                return await Renamer.RenameSymbolAsync(startingSolution, symbol, fixedName, options, cancellationToken).ConfigureAwait(false);
-            }
-
             protected override async Task<Solution> GetChangedSolutionAsync(CancellationToken cancellationToken)
             {
-                return await FixAsync(_startingSolution, _options, _symbol, _newName, cancellationToken);
+                return _cachedNewSolution ??= await _createChangedSolutionAsync(cancellationToken).ConfigureAwait(false);
             }
 
             protected override async Task<IEnumerable<CodeActionOperation>> ComputePreviewOperationsAsync(CancellationToken cancellationToken)
             {
-                return new ApplyChangesOperation[] { new ApplyChangesOperation(await _createChangedSolutionAsync(cancellationToken).ConfigureAwait(false)) };
+                return new ApplyChangesOperation[] { new ApplyChangesOperation(await GetChangedSolutionAsync(cancellationToken).ConfigureAwait(false)) };
             }
 
             protected override async Task<IEnumerable<CodeActionOperation>> ComputeOperationsAsync(CancellationToken cancellationToken)
             {
-                var newSolution = await _createChangedSolutionAsync(cancellationToken).ConfigureAwait(false);
+                var newSolution = await GetChangedSolutionAsync(cancellationToken).ConfigureAwait(false);
                 var codeAction = new ApplyChangesOperation(newSolution);
-
-                var factory = CallGetISymbolRenamedCodeActionOperationFactoryWorkspaceService(_startingSolution.Workspace.Services);
-                return new CodeActionOperation[]
-                {
-                    codeAction,
-                    CallCreateSymbolRenamedOperation(factory, _symbol, _newName, _startingSolution, newSolution)
-                };
+                return ImmutableArray.Create<CodeActionOperation>(codeAction);
+                //var factory = CallGetISymbolRenamedCodeActionOperationFactoryWorkspaceService(_startingSolution.Workspace.Services);
+                //return new CodeActionOperation[]
+                //{
+                //    codeAction,
+                //    CallCreateSymbolRenamedOperation(factory, _symbol, _newName, _startingSolution, newSolution)
+                //};
 
             }
 
+            
+
+
+    //#region Reflection
+    //private static System.Reflection.Assembly AssemblyResolver(System.Reflection.AssemblyName assemblyName)
+    //        {
+    //            assemblyName.Version = null;
+    //            return System.Reflection.Assembly.Load(assemblyName);
+    //        }
+
+    //        private static readonly Type _ISymbolRenamedCodeActionOperationFactoryWorkspaceServiceType
+    //            = Type.GetType("Microsoft.CodeAnalysis.CodeActions.WorkspaceServices.ISymbolRenamedCodeActionOperationFactoryWorkspaceService, Microsoft.CodeAnalysis.Features, Version=3.3.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35");
+
+    //        private delegate IWorkspaceService GetRequiredServiceCaller(HostWorkspaceServices instance);
+    //        private static readonly MethodInfo _cachedGetRequiredServiceMethodInfo = typeof(HostWorkspaceServices).GetMethod(nameof(HostWorkspaceServices.GetRequiredService), BindingFlags.Public | BindingFlags.Instance);
+
+    //        private static readonly MethodInfo _cachedGenericGetRequiredServiceMethodInfo = _cachedGetRequiredServiceMethodInfo.MakeGenericMethod(_ISymbolRenamedCodeActionOperationFactoryWorkspaceServiceType);
+    //        private static readonly GetRequiredServiceCaller _callerForGetRequiredService = (GetRequiredServiceCaller)Delegate.CreateDelegate(typeof(GetRequiredServiceCaller), _cachedGenericGetRequiredServiceMethodInfo);
+    //        private static IWorkspaceService CallGetISymbolRenamedCodeActionOperationFactoryWorkspaceService(HostWorkspaceServices instance)
+    //        {
+    //            return _callerForGetRequiredService(instance);
+    //        }
 
 
 
-            #region Reflection
-            private static System.Reflection.Assembly AssemblyResolver(System.Reflection.AssemblyName assemblyName)
-            {
-                assemblyName.Version = null;
-                return System.Reflection.Assembly.Load(assemblyName);
-            }
+    //        private delegate CodeActionOperation CreateSymbolRenamedOperationCaller(IWorkspaceService instance, ISymbol symbol, string newName, Solution startingSolution, Solution updatedSolution);
+    //        private static readonly MethodInfo _cachedCreateSymbolRenamedOperationMethodInfo = _ISymbolRenamedCodeActionOperationFactoryWorkspaceServiceType.GetMethod("CreateSymbolRenamedOperation", BindingFlags.Public | BindingFlags.Instance);
+    //        //private static readonly CreateSymbolRenamedOperationCaller _callerForCreateSymbolRenamedOperation = (CreateSymbolRenamedOperationCaller)Delegate.CreateDelegate(typeof(CreateSymbolRenamedOperationCaller), _cachedCreateSymbolRenamedOperationMethodInfo);
+    //        private static CodeActionOperation CallCreateSymbolRenamedOperation(IWorkspaceService instance, ISymbol symbol, string newName, Solution startingSolution, Solution updatedSolution)
+    //        {
+    //            object[] args = new object[] { symbol, newName, startingSolution, updatedSolution };
+    //            return (CodeActionOperation)_cachedCreateSymbolRenamedOperationMethodInfo.Invoke(instance, args);
+    //            //return _callerForCreateSymbolRenamedOperation(instance, symbol, newName, startingSolution, updatedSolution);
+    //        }
 
-            private static readonly Type _ISymbolRenamedCodeActionOperationFactoryWorkspaceServiceType
-                = Type.GetType("Microsoft.CodeAnalysis.CodeActions.WorkspaceServices.ISymbolRenamedCodeActionOperationFactoryWorkspaceService, Microsoft.CodeAnalysis.Features, Version=3.3.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35");
-
-            private delegate IWorkspaceService GetRequiredServiceCaller(HostWorkspaceServices instance);
-            private static readonly MethodInfo _cachedGetRequiredServiceMethodInfo = typeof(HostWorkspaceServices).GetMethod(nameof(HostWorkspaceServices.GetRequiredService), BindingFlags.Public | BindingFlags.Instance);
-
-            private static readonly MethodInfo _cachedGenericGetRequiredServiceMethodInfo = _cachedGetRequiredServiceMethodInfo.MakeGenericMethod(_ISymbolRenamedCodeActionOperationFactoryWorkspaceServiceType);
-            private static readonly GetRequiredServiceCaller _callerForGetRequiredService = (GetRequiredServiceCaller)Delegate.CreateDelegate(typeof(GetRequiredServiceCaller), _cachedGenericGetRequiredServiceMethodInfo);
-            private static IWorkspaceService CallGetISymbolRenamedCodeActionOperationFactoryWorkspaceService(HostWorkspaceServices instance)
-            {
-                return _callerForGetRequiredService(instance);
-            }
-
-
-
-            private delegate CodeActionOperation CreateSymbolRenamedOperationCaller(IWorkspaceService instance, ISymbol symbol, string newName, Solution startingSolution, Solution updatedSolution);
-            private static readonly MethodInfo _cachedCreateSymbolRenamedOperationMethodInfo = _ISymbolRenamedCodeActionOperationFactoryWorkspaceServiceType.GetMethod("CreateSymbolRenamedOperation", BindingFlags.Public | BindingFlags.Instance);
-            //private static readonly CreateSymbolRenamedOperationCaller _callerForCreateSymbolRenamedOperation = (CreateSymbolRenamedOperationCaller)Delegate.CreateDelegate(typeof(CreateSymbolRenamedOperationCaller), _cachedCreateSymbolRenamedOperationMethodInfo);
-            private static CodeActionOperation CallCreateSymbolRenamedOperation(IWorkspaceService instance, ISymbol symbol, string newName, Solution startingSolution, Solution updatedSolution)
-            {
-                object[] args = new object[] { symbol, newName, startingSolution, updatedSolution };
-                return (CodeActionOperation)_cachedCreateSymbolRenamedOperationMethodInfo.Invoke(instance, args);
-                //return _callerForCreateSymbolRenamedOperation(instance, symbol, newName, startingSolution, updatedSolution);
-            }
-
-            #endregion
+    //        #endregion
 
         }
     }

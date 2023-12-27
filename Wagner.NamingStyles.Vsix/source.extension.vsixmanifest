@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="Wagner.NamingStyles.26671789-0f82-4d4c-809f-add2728454c2" Version="1.0" Language="en-US" Publisher="Mike Wagner"/>
+    <Identity Id="Wagner.NamingStyles.26671789-0f82-4d4c-809f-add2728454c2" Version="1.0" Language="en-US" Publisher="mwagn"/>
     <DisplayName>Wagner.NamingStyles</DisplayName>
     <Description xml:space="preserve">This extension enables FixAll for naming style violations (IDE1006).</Description>
   </Metadata>

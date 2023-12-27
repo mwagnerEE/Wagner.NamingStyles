@@ -57,39 +57,37 @@ namespace Wagner.NamingStyles
             CapitalizationScheme = capitalizationScheme;
         }
 
-        public NamingStyle With(
+        public readonly NamingStyle With(
           Optional<string> name = default,
           Optional<string> prefix = default,
           Optional<string> suffix = default,
           Optional<string> wordSeparator = default,
           Optional<Capitalization> capitalizationScheme = default)
         {
-            var newName = name.HasValue ? name.Value : this.Name;
-            var newPrefix = prefix.HasValue ? prefix.Value : this.Prefix;
-            var newSuffix = suffix.HasValue ? suffix.Value : this.Suffix;
-            var newWordSeparator = wordSeparator.HasValue ? wordSeparator.Value : this.WordSeparator;
-            var newCapitalizationScheme = capitalizationScheme.HasValue ? capitalizationScheme.Value : this.CapitalizationScheme;
+            var newName = name.HasValue ? name.Value : Name;
+            var newPrefix = prefix.HasValue ? prefix.Value : Prefix;
+            var newSuffix = suffix.HasValue ? suffix.Value : Suffix;
+            var newWordSeparator = wordSeparator.HasValue ? wordSeparator.Value : WordSeparator;
+            var newCapitalizationScheme = capitalizationScheme.HasValue ? capitalizationScheme.Value : CapitalizationScheme;
 
-            if (newName == this.Name &&
-                newPrefix == this.Prefix &&
-                newSuffix == this.Suffix &&
-                newWordSeparator == this.WordSeparator &&
-                newCapitalizationScheme == this.CapitalizationScheme)
+            if (newName == Name &&
+                newPrefix == Prefix &&
+                newSuffix == Suffix &&
+                newWordSeparator == WordSeparator &&
+                newCapitalizationScheme == CapitalizationScheme)
             {
                 return this;
             }
 
-            return new NamingStyle(this.ID,
-                newName, newPrefix, newSuffix, newWordSeparator, newCapitalizationScheme);
+            return new NamingStyle(ID, newName, newPrefix, newSuffix, newWordSeparator, newCapitalizationScheme);
         }
 
-        public override bool Equals(object obj)
+        public override readonly bool Equals(object obj)
         {
-            return obj is NamingStyle other
-                && Equals(other);
+            return obj is NamingStyle other && Equals(other);
         }
 
-        public bool Equals(NamingStyle other)
+        public readonly bool Equals(NamingStyle other)
         {
             return ID == other.ID
                 && Name == other.Name
@@ -99,7 +97,7 @@ namespace Wagner.NamingStyles
                 && CapitalizationScheme == other.CapitalizationScheme;
         }
 
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
             return HashCombine(ID.GetHashCode(),
                 HashCombine(Name?.GetHashCode() ?? 0,
@@ -124,7 +122,7 @@ namespace Wagner.NamingStyles
             return Prefix + combinedWordsWithCasing + Suffix;
         }
 
-        private IEnumerable<string> ApplyCapitalization(IEnumerable<string> words)
+        private readonly IEnumerable<string> ApplyCapitalization(IEnumerable<string> words)
         {
             switch (CapitalizationScheme)
             {
@@ -143,7 +141,7 @@ namespace Wagner.NamingStyles
             }
         }
 
-        private string CapitalizeFirstLetter(string word)
+        private readonly string CapitalizeFirstLetter(string word)
         {
             if (word.Length == 0)
             {
@@ -161,7 +159,7 @@ namespace Wagner.NamingStyles
             return new string(chars);
         }
 
-        private string DecapitalizeFirstLetter(string word)
+        private readonly string DecapitalizeFirstLetter(string word)
         {
             if (word.Length == 0)
             {
@@ -230,7 +228,7 @@ namespace Wagner.NamingStyles
             }
         }
 
-        private WordSpanEnumerable GetWordSpans(string name, TextSpan nameSpan)
+        private readonly WordSpanEnumerable GetWordSpans(string name, TextSpan nameSpan)
             => new(name, nameSpan, WordSeparator);
 
         private static string Substring(string name, TextSpan wordSpan)
@@ -476,7 +474,7 @@ namespace Wagner.NamingStyles
 
 
 
-        private string EnsureSuffix(string name)
+        private readonly string EnsureSuffix(string name)
         {
             // If the name already ends with any prefix of the Suffix, only append the suffix of
             // the Suffix not contained in the longest such Suffix prefix. For example, if the 
@@ -492,7 +490,7 @@ namespace Wagner.NamingStyles
             return name + Suffix;
         }
 
-        private string EnsurePrefix(string name)
+        private readonly string EnsurePrefix(string name)
         {
             // If the name already starts with any suffix of the Prefix, only prepend the prefix of
             // the Prefix not contained in the longest such Prefix suffix. For example, if the 
@@ -508,7 +506,7 @@ namespace Wagner.NamingStyles
             return Prefix + name;
         }
 
-        public XElement CreateXElement()
+        public readonly XElement CreateXElement()
             => new(nameof(NamingStyle),
                 new XAttribute(nameof(ID), ID),
                 new XAttribute(nameof(Name), Name),
@@ -605,7 +603,7 @@ namespace Wagner.NamingStyles
                 _wordSeparator = wordSeparator;
             }
 
-            public WordSpanEnumerator GetEnumerator()
+            public readonly WordSpanEnumerator GetEnumerator()
                 => new(_name, _nameSpan, _wordSeparator);
         }
 

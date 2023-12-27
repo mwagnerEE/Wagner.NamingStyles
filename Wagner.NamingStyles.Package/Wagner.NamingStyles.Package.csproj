@@ -10,15 +10,12 @@
   <PropertyGroup>
     <PackageId>Wagner.NamingStyles</PackageId>
     <PackageVersion>1.0.0.0</PackageVersion>
-    <Authors>mwagn</Authors>
-    <PackageLicenseUrl>http://LICENSE_URL_HERE_OR_DELETE_THIS_LINE</PackageLicenseUrl>
-    <PackageProjectUrl>http://PROJECT_URL_HERE_OR_DELETE_THIS_LINE</PackageProjectUrl>
-    <PackageIconUrl>http://ICON_URL_HERE_OR_DELETE_THIS_LINE</PackageIconUrl>
-    <RepositoryUrl>http://REPOSITORY_URL_HERE_OR_DELETE_THIS_LINE</RepositoryUrl>
+    <Authors>Mike Wagner</Authors>
+    <PackageLicenseUrl>https://github.com/mwagnerEE/Wagner.NamingStyles/blob/master/LICENSE.txt</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/mwagnerEE/Wagner.NamingStyles</RepositoryUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <Description>Wagner.NamingStyles</Description>
-    <PackageReleaseNotes>Summary of changes made in this release of the package.</PackageReleaseNotes>
-    <Copyright>Copyright</Copyright>
+    <Description>This extension enables FixAll for naming style violations (IDE1006).</Description>
+    <Copyright>Mike Wagner</Copyright>
     <PackageTags>Wagner.NamingStyles, analyzers</PackageTags>
     <DevelopmentDependency>true</DevelopmentDependency>
     <NoPackageAnalysis>true</NoPackageAnalysis>
